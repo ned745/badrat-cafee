@@ -313,3 +313,103 @@ app.post('/api/mpesa/callback', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// Add these schemas and middleware in your server.js
+
+const itemSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  category: { type: String, required: true },
+  price: { type: Number, required: true },
+  description: String,
+  image: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const Item = mongoose.model('Item', itemSchema);
+
+// Admin Authentication Middleware
+const verifyAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: 'Access denied. No token provided.' });
+  }
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Access denied. Requires admin privileges.' });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+  }
+};
+
+// 1. Admin Login Route
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body;
+  // Use environment variables for admin credentials securely
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  const adminPass = process.env.ADMIN_PASSWORD || 'badrat2026!';
+
+  if (username === adminUser && password === adminPass) {
+    const token = jwt.sign({ username: adminUser, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '12h' });
+    return res.json({ success: true, token, message: 'Admin login successful' });
+  }
+  res.status(401).json({ success: false, error: 'Invalid admin credentials' });
+});
+
+// 2. Protected M-Pesa STK Push Route (Admin Only)
+app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
+  // Your existing Daraja STK Push logic here...
+});
+
+// 3. Public Item Fetch Route
+app.get('/api/items', async (req, res) => {
+  try {
+    const items = await Item.find().sort({ createdAt: -1 });
+    res.json({ success: true, items });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Protected Item Create Route (Admin Only)
+app.post('/api/items', verifyAdmin, async (req, res) => {
+  try {
+    const newItem = new Item(req.body);
+    await newItem.save();
+    res.json({ success: true, item: newItem, message: 'Item created successfully' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 5. Protected Item Delete Route (Admin Only)
+app.delete('/api/items/:id', verifyAdmin, async (req, res) => {
+  try {
+    const deletedItem = await Item.findByIdAndDelete(req.params.id);
+    if (!deletedItem) return res.status(404).json({ success: false, error: 'Item not found' });
+    res.json({ success: true, message: 'Item deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// Admin Login Route in server.js
+app.post('/api/admin/login', async (req, res) => {
+  const { username, password } = req.body;
+  
+  // Updated credentials: BADRAT and Password$1
+  const adminUser = process.env.ADMIN_USER || 'BADRAT';
+  const adminPass = process.env.ADMIN_PASSWORD || 'Password$1';
+
+  if (username === adminUser && password === adminPass) {
+    const token = jwt.sign(
+      { username: adminUser, role: 'admin' }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '12h' }
+    );
+    return res.json({ success: true, token, message: 'Admin login successful' });
+  }
+  
+  res.status(401).json({ success: false, error: 'Invalid admin credentials' });
+});

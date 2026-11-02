@@ -487,3 +487,87 @@
     }
   });
 </script>
+<!-- Admin Portal Section in index.html -->
+<div id="adminPortal" class="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-8 text-white shadow-xl">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold flex items-center gap-2">
+      <span class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+      Badrat Admin Portal
+    </h2>
+    <div id="adminAuthStatus">
+      <button onclick="openAdminLoginModal()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold transition">
+        Admin Login
+      </button>
+    </div>
+  </div>
+  <script>
+  // ... your existing API_BASE_URL & admin auth logic ...
+  const ADMIN_TOKEN_KEY = 'badrat_admin_token';
+  const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000' 
+    : 'https://badrat-cafee-api.onrender.com';
+
+  // ----------------------------------------------------
+  // PASTE THE STK PUSH FUNCTION HERE
+  // ----------------------------------------------------
+  async function triggerStkPush(phoneNumber, amount) {
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      alert('Unauthorized: You must be logged in as Admin to trigger M-Pesa payments.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/mpesa/stkpush`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ phone: phoneNumber, amount: amount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('STK Push sent successfully to ' + phoneNumber);
+      } else {
+        alert('Payment failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('STK Push error:', err);
+      alert('Network error triggering STK Push.');
+    }
+  }
+
+  // ... rest of your functions (loadTerminals, handleAddItem, etc.) ...
+</script>
+
+  <!-- Hidden Admin Dashboard (Revealed upon successful login) -->
+  <div id="adminDashboardContent" class="hidden space-y-6">
+    <!-- Post New Item Form -->
+    <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+      <h3 class="text-md font-semibold mb-3 text-indigo-400">Post New Menu / Service Item</h3>
+      <form id="addItemForm" onsubmit="handleAddItem(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input type="text" id="itemName" placeholder="Item Name (e.g. Red Bull)" required class="bg-gray-900 border border-gray-700 px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+        <input type="text" id="itemCategory" placeholder="Category (e.g. Drinks)" required class="bg-gray-900 border border-gray-700 px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+        <input type="number" id="itemPrice" placeholder="Price (KES)" required class="bg-gray-900 border border-gray-700 px-3 py-2 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+        <button type="submit" class="bg-green-600 hover:bg-green-500 font-semibold py-2 rounded-lg text-sm transition">Post Item</button>
+      </form>
+    </div>
+
+    <!-- Inventory & Management List -->
+    <div>
+      <h3 class="text-md font-semibold mb-3 text-indigo-400">Active Cafe Inventory & Services</h3>
+      <div id="adminItemsList" class="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-2">
+        <!-- Dynamically populated items with Delete buttons -->
+      </div>
+    </div>
+  </div>
+</div>
+// Frontend JavaScript in public/index.html
+function promptAdminLogin() {
+  const user = prompt("Admin Username:", "BADRAT");
+  const pass = prompt("Admin Password:");
+  if (user && pass) {
+    handleAdminLogin(user, pass);
+  }
+}
