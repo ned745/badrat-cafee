@@ -1,5 +1,11 @@
-﻿node_modules/
+﻿# Environment Variables (Secrets & API Keys)
 .env
+.env.local
+
+# Dependency Folders
+node_modules/
+npm-debug.log*
+
+# System Files
 .DS_Store
-.next/
-dist/
+Thumbs.db
