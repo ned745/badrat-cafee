@@ -20,15 +20,13 @@ const ADMIN_USER = process.env.ADMIN_USER || 'BADRAT';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const MPESA_ENV = process.env.MPESA_ENV || 'sandbox';
-
 const MPESA_BASE_URL =
   MPESA_ENV === 'production'
     ? 'https://api.safaricom.co.ke'
     : 'https://sandbox.safaricom.co.ke';
 
 const RENDER_BACKEND_URL = (
-  process.env.RENDER_BACKEND_URL ||
-  'https://badrat-cafee.onrender.com'
+  process.env.RENDER_BACKEND_URL || 'https://badrat-cafee.onrender.com'
 ).replace(/\/+$/, '');
 
 const CALLBACK_URL =
@@ -41,27 +39,30 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL || '').split(',')
 ]
   .filter(Boolean)
-  .map(url => url.trim().replace(/\/+$/, ''));
+  .map((url) => url.trim().replace(/\/+$/, ''));
 
 app.use(express.json({ limit: '2mb' }));
 
-app.use(cors({
-  origin(origin, callback) {
-    if (
-      !origin ||
-      allowedOrigins.length === 0 ||
-      allowedOrigins.includes(origin.replace(/\/+$/, ''))
-    ) {
-      return callback(null, true);
-    }
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Permit server-to-server requests and configured browser origins.
+      if (
+        !origin ||
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes(origin.replace(/\/+$/, ''))
+      ) {
+        return callback(null, true);
+      }
 
-    return callback(
-      new Error('This website is not allowed to access the API.')
-    );
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+      return callback(
+        new Error('This website is not allowed to access the API.')
+      );
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 
 // ==================================================
 // 2. CLOUDINARY CONFIGURATION
@@ -81,9 +82,7 @@ if (
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter(req, file, callback) {
     if (!file.mimetype.startsWith('image/')) {
       return callback(new Error('Only image files are allowed.'));
@@ -115,11 +114,12 @@ async function connectDatabase() {
   const mongoUri = process.env.MONGO_URI;
 
   if (!mongoUri) {
-    throw new Error('MONGO_URI is missing from your environment variables.');
+    throw new Error(
+      'MONGO_URI is missing from your environment variables.'
+    );
   }
 
   await mongoose.connect(mongoUri);
-
   console.log('MongoDB Atlas connected successfully.');
 }
 
@@ -129,49 +129,28 @@ async function connectDatabase() {
 
 const paymentSchema = new mongoose.Schema(
   {
-    phone: {
-      type: String,
-      required: true
-    },
-
-    amount: {
-      type: Number,
-      required: true
-    },
-
-    orderId: {
-      type: String,
-      default: null
-    },
-
+    phone: { type: String, required: true },
+    amount: { type: Number, required: true },
+    orderId: { type: String, default: null },
     merchantRequestId: String,
-
     checkoutRequestId: {
       type: String,
       unique: true,
       sparse: true
     },
-
-    mpesaReceiptNumber: {
-      type: String,
-      default: null
-    },
-
+    mpesaReceiptNumber: { type: String, default: null },
     status: {
       type: String,
       enum: ['initiating', 'pending', 'success', 'failed'],
       default: 'initiating',
       index: true
     },
-
     resultCode: Number,
     resultDescription: String,
     transactionDate: Date,
     callbackReceivedAt: Date
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
 const Payment =
@@ -179,6 +158,114 @@ const Payment =
   mongoose.model('BadratPayment', paymentSchema);
 
 // ==================================================
+// 5. CUSTOMER ORDERS, TERMINALS AND INVENTORY MODELS
+// ==================================================
+
+const orderSchema = new mongoose.Schema(
+  {
+    customerName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100
+    },
+    serviceType: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80
+    },
+    details: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000
+    },
+    status: {
+      type: String,
+      enum: ['New', 'In Progress', 'Completed', 'Cancelled'],
+      default: 'New',
+      index: true
+    }
+  },
+  { timestamps: true }
+);
+
+const Order =
+  mongoose.models.BadratOrder ||
+  mongoose.model('BadratOrder', orderSchema);
+
+const terminalSchema = new mongoose.Schema(
+  {
+    terminalId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
+    },
+    tier: {
+      type: String,
+      default: 'Standard',
+      trim: true
+    },
+    status: {
+      type: String,
+      enum: ['Available', 'Occupied', 'Maintenance'],
+      default: 'Available'
+    },
+    currentUser: {
+      type: String,
+      default: ''
+    }
+  },
+  { timestamps: true }
+);
+
+const Terminal =
+  mongoose.models.BadratTerminal ||
+  mongoose.model('BadratTerminal', terminalSchema);
+
+const itemSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 80
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    description: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: 1000
+    },
+    imageUrl: {
+      type: String,
+      default: ''
+    },
+    imagePublicId: {
+      type: String,
+      default: ''
+    }
+  },
+  { timestamps: true }
+);
+
+const Item =
+  mongoose.models.BadratItem ||
+  mongoose.model('BadratItem', itemSchema);
+  // ==================================================
 // 5. HEALTH CHECKS
 // ==================================================
 
@@ -191,7 +278,6 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   const connected = mongoose.connection.readyState === 1;
-
   res.status(connected ? 200 : 503).json({
     success: connected,
     server: 'online',
@@ -226,10 +312,7 @@ app.post('/api/admin/login', (req, res) => {
       });
     }
 
-    if (
-      username.trim() !== ADMIN_USER ||
-      password !== ADMIN_PASSWORD
-    ) {
+    if (username.trim() !== ADMIN_USER || password !== ADMIN_PASSWORD) {
       return res.status(401).json({
         success: false,
         error: 'Invalid admin credentials.'
@@ -237,14 +320,9 @@ app.post('/api/admin/login', (req, res) => {
     }
 
     const token = jwt.sign(
-      {
-        username: ADMIN_USER,
-        role: 'admin'
-      },
+      { username: ADMIN_USER, role: 'admin' },
       JWT_SECRET,
-      {
-        expiresIn: '12h'
-      }
+      { expiresIn: '12h' }
     );
 
     return res.json({
@@ -252,10 +330,8 @@ app.post('/api/admin/login', (req, res) => {
       token,
       message: 'Admin login successful'
     });
-
   } catch (error) {
     console.error('Admin login error:', error.message);
-
     return res.status(500).json({
       success: false,
       error: 'Login failed.'
@@ -284,22 +360,246 @@ function verifyAdminToken(req, res, next) {
     });
   }
 
-  jwt.verify(
-    authHeader.substring(7),
-    JWT_SECRET,
-    (error, user) => {
-      if (error || !user || user.role !== 'admin') {
-        return res.status(403).json({
+  jwt.verify(authHeader.substring(7), JWT_SECRET, (error, user) => {
+    if (error || !user || user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid or expired token.'
+      });
+    }
+
+    req.user = user;
+    next();
+  });
+}
+
+// ==================================================
+// CUSTOMER ORDERS
+// ==================================================
+
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { customerName, serviceType, details } = req.body || {};
+
+    if (
+      typeof customerName !== 'string' || !customerName.trim() ||
+      typeof serviceType !== 'string' || !serviceType.trim() ||
+      typeof details !== 'string' || !details.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, service type and order details are required.'
+      });
+    }
+
+    const order = await Order.create({
+      customerName: customerName.trim(),
+      serviceType: serviceType.trim(),
+      details: details.trim()
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Your service request has been submitted.',
+      order: {
+        id: order._id,
+        status: order.status,
+        createdAt: order.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Order submission error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to submit your order. Please try again.'
+    });
+  }
+});
+
+app.get('/api/admin/orders', verifyAdminToken, async (req, res) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 }).limit(200).lean();
+    return res.json({ success: true, orders });
+  } catch (error) {
+    console.error('Order retrieval error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to retrieve orders.'
+    });
+  }
+});
+
+// ==================================================
+// TERMINAL MATRIX
+// ==================================================
+
+app.get('/api/terminals', async (req, res) => {
+  try {
+    const terminals = await Terminal.find().sort({ terminalId: 1 }).lean();
+    return res.json({ success: true, terminals });
+  } catch (error) {
+    console.error('Terminal retrieval error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to retrieve terminal availability.'
+    });
+  }
+});
+
+app.post('/api/terminals/book', verifyAdminToken, async (req, res) => {
+  try {
+    const { terminalId, currentUser, status } = req.body || {};
+    const allowedStatuses = ['Available', 'Occupied', 'Maintenance'];
+
+    if (!terminalId || !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'A valid terminal and status are required.'
+      });
+    }
+
+    const terminal = await Terminal.findOneAndUpdate(
+      { terminalId: String(terminalId) },
+      {
+        $set: {
+          status,
+          currentUser: status === 'Occupied' ? String(currentUser || '').trim() : ''
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!terminal) {
+      return res.status(404).json({
+        success: false,
+        error: 'Terminal not found.'
+      });
+    }
+
+    return res.json({ success: true, terminal });
+  } catch (error) {
+    console.error('Terminal update error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to update terminal.'
+    });
+  }
+});
+// ==================================================
+// INVENTORY
+// ==================================================
+
+app.get('/api/items', async (req, res) => {
+  try {
+    const items = await Item.find().sort({ createdAt: -1 }).lean();
+    return res.json({ success: true, items });
+  } catch (error) {
+    console.error('Inventory retrieval error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to retrieve inventory.'
+    });
+  }
+});
+
+app.post(
+  '/api/items',
+  verifyAdminToken,
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      const { name, category, price, description = '' } = req.body || {};
+      const numericPrice = Number(price);
+
+      if (
+        typeof name !== 'string' || !name.trim() ||
+        typeof category !== 'string' || !category.trim() ||
+        price === undefined || price === '' ||
+        !Number.isFinite(numericPrice) || numericPrice < 0
+      ) {
+        return res.status(400).json({
           success: false,
-          error: 'Invalid or expired token.'
+          error: 'Item name, category and a valid price are required.'
         });
       }
 
-      req.user = user;
-      next();
+      let imageUrl = '';
+      let imagePublicId = '';
+
+      if (req.file) {
+        if (
+          !process.env.CLOUDINARY_CLOUD_NAME ||
+          !process.env.CLOUDINARY_API_KEY ||
+          !process.env.CLOUDINARY_API_SECRET
+        ) {
+          return res.status(503).json({
+            success: false,
+            error: 'Image upload is not configured. Add Cloudinary credentials to Render.'
+          });
+        }
+
+        const uploaded = await uploadBufferToCloudinary(req.file.buffer);
+        imageUrl = uploaded.secure_url;
+        imagePublicId = uploaded.public_id;
+      }
+
+      const item = await Item.create({
+        name: name.trim(),
+        category: category.trim(),
+        price: numericPrice,
+        description: String(description).trim(),
+        imageUrl,
+        imagePublicId
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Item added to inventory.',
+        item
+      });
+    } catch (error) {
+      console.error('Item creation error:', error.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to add item.'
+      });
     }
-  );
-}
+  }
+);
+
+app.delete('/api/items/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid item ID.'
+      });
+    }
+
+    const item = await Item.findByIdAndDelete(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item not found.'
+      });
+    }
+
+    if (item.imagePublicId && process.env.CLOUDINARY_API_SECRET) {
+      await cloudinary.uploader.destroy(item.imagePublicId).catch((error) => {
+        console.error('Cloudinary image cleanup failed:', error.message);
+      });
+    }
+
+    return res.json({ success: true, message: 'Item deleted.' });
+  } catch (error) {
+    console.error('Item deletion error:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to delete item.'
+    });
+  }
+});
 
 // ==================================================
 // 8. CLOUDINARY IMAGE UPLOAD
@@ -339,10 +639,8 @@ app.post(
           publicId: result.public_id
         }
       });
-
     } catch (error) {
       console.error('Cloudinary upload error:', error.message);
-
       return res.status(500).json({
         success: false,
         error: 'Image upload failed.'
@@ -350,7 +648,6 @@ app.post(
     }
   }
 );
-
 // ==================================================
 // 9. M-PESA ACCESS TOKEN
 // ==================================================
@@ -371,9 +668,7 @@ async function getMpesaAccessToken() {
     const response = await axios.get(
       `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`,
       {
-        headers: {
-          Authorization: `Basic ${auth}`
-        },
+        headers: { Authorization: `Basic ${auth}` },
         timeout: 25000
       }
     );
@@ -383,13 +678,11 @@ async function getMpesaAccessToken() {
     }
 
     return response.data.access_token;
-
   } catch (error) {
     console.error(
       'M-Pesa OAuth error:',
       error.response?.data || error.message
     );
-
     throw new Error('Unable to authenticate with Safaricom.');
   }
 }
@@ -399,17 +692,10 @@ async function getMpesaAccessToken() {
 // ==================================================
 
 function formatPhoneNumber(phone) {
-  let number = String(phone)
-    .trim()
-    .replace(/[\s-]/g, '');
+  let number = String(phone).trim().replace(/[\s-]/g, '');
 
-  if (number.startsWith('+')) {
-    number = number.substring(1);
-  }
-
-  if (number.startsWith('0')) {
-    number = `254${number.substring(1)}`;
-  }
+  if (number.startsWith('+')) number = number.substring(1);
+  if (number.startsWith('0')) number = `254${number.substring(1)}`;
 
   if (!/^254[71]\d{8}$/.test(number)) {
     throw new Error('Enter a valid Kenyan M-Pesa phone number.');
@@ -430,8 +716,7 @@ function getNairobiTimestamp() {
     hourCycle: 'h23'
   }).formatToParts(new Date());
 
-  const part = type =>
-    parts.find(item => item.type === type).value;
+  const part = (type) => parts.find((item) => item.type === type).value;
 
   return (
     part('year') +
@@ -447,163 +732,117 @@ function getNairobiTimestamp() {
 // 11. M-PESA STK PUSH
 // ==================================================
 
-app.post(
-  '/api/mpesa/stkpush',
-  verifyAdminToken,
-  async (req, res) => {
-    let payment;
+app.post('/api/mpesa/stkpush', verifyAdminToken, async (req, res) => {
+  let payment;
 
-    try {
-      const { phone, amount, orderId } = req.body || {};
+  try {
+    const { phone, amount, orderId } = req.body || {};
 
-      if (
-        !phone ||
-        amount === undefined ||
-        amount === null ||
-        amount === ''
-      ) {
-        return res.status(400).json({
-          success: false,
-          error: 'Phone number and amount are required.'
-        });
-      }
-
-      const numericAmount = Number(amount);
-
-      if (
-        !Number.isSafeInteger(numericAmount) ||
-        numericAmount < 1
-      ) {
-        return res.status(400).json({
-          success: false,
-          error: 'Enter a valid positive whole-number amount.'
-        });
-      }
-
-      const formattedPhone = formatPhoneNumber(phone);
-
-      const shortCode = process.env.MPESA_SHORTCODE;
-      const passKey = process.env.MPESA_PASSKEY;
-
-      if (!shortCode || !passKey) {
-        throw new Error('M-Pesa shortcode or passkey is missing.');
-      }
-
-      if (!CALLBACK_URL.startsWith('https://')) {
-        throw new Error('A valid HTTPS M-Pesa callback URL is required.');
-      }
-
-      const accessToken = await getMpesaAccessToken();
-
-      const timestamp = getNairobiTimestamp();
-
-      const password = Buffer.from(
-        `${shortCode}${passKey}${timestamp}`
-      ).toString('base64');
-
-      // Save payment before sending request.
-
-      payment = await Payment.create({
-        phone: formattedPhone,
-        amount: numericAmount,
-        orderId: orderId ? String(orderId) : null,
-        status: 'initiating'
+    if (!phone || amount === undefined || amount === null || amount === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number and amount are required.'
       });
+    }
 
-      const payload = {
+    const numericAmount = Number(amount);
+
+    if (!Number.isSafeInteger(numericAmount) || numericAmount < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Enter a valid positive whole-number amount.'
+      });
+    }
+
+    const formattedPhone = formatPhoneNumber(phone);
+    const shortCode = process.env.MPESA_SHORTCODE;
+    const passKey = process.env.MPESA_PASSKEY;
+
+    if (!shortCode || !passKey) {
+      return res.status(503).json({
+        success: false,
+        error: 'M-Pesa shortcode or passkey is missing.'
+      });
+    }
+
+    const timestamp = getNairobiTimestamp();
+    const password = Buffer.from(
+      `${shortCode}${passKey}${timestamp}`
+    ).toString('base64');
+
+    payment = await Payment.create({
+      phone: formattedPhone,
+      amount: numericAmount,
+      orderId: orderId || null,
+      status: 'initiating'
+    });
+
+    const accessToken = await getMpesaAccessToken();
+
+    const response = await axios.post(
+      `${MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`,
+      {
         BusinessShortCode: shortCode,
         Password: password,
         Timestamp: timestamp,
-
-        TransactionType:
-          process.env.MPESA_TRANSACTION_TYPE ||
-          'CustomerPayBillOnline',
-
+        TransactionType: 'CustomerPayBillOnline',
         Amount: numericAmount,
         PartyA: formattedPhone,
         PartyB: shortCode,
         PhoneNumber: formattedPhone,
-
         CallBackURL: CALLBACK_URL,
-
         AccountReference: 'BADRATCAFE',
-        TransactionDesc: 'Payment for Badrat Cafee order'
-      };
-
-      const response = await axios.post(
-        `${MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      const data = response.data || {};
-
-      if (String(data.ResponseCode) !== '0') {
-        payment.status = 'failed';
-
-        payment.resultDescription =
-          data.ResponseDescription || 'STK Push rejected.';
-
-        await payment.save();
-
-        return res.status(400).json({
-          success: false,
-          error: payment.resultDescription,
-          data
-        });
+        TransactionDesc: 'Badrat Cafee Payment'
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
       }
+    );
 
-      payment.merchantRequestId = data.MerchantRequestID;
-      payment.checkoutRequestId = data.CheckoutRequestID;
-      payment.status = 'pending';
+    const data = response.data || {};
 
-      await payment.save();
-
-      return res.json({
-        success: true,
-        message: 'STK Push sent successfully. Check your phone.',
-        data,
-        paymentId: payment._id,
-        status: payment.status
-      });
-
-    } catch (error) {
-      console.error(
-        'STK Push error:',
-        error.response?.data || error.message
+    if (data.ResponseCode !== '0' || !data.CheckoutRequestID) {
+      throw new Error(
+        data.ResponseDescription ||
+        data.errorMessage ||
+        'Safaricom did not accept the STK request.'
       );
-
-      // A timeout does not prove that Safaricom rejected
-      // the request. Keep uncertain transactions pending.
-
-      if (payment) {
-        payment.status = error.response ? 'failed' : 'pending';
-
-        payment.resultDescription = error.message;
-
-        await payment.save().catch(saveError => {
-          console.error(
-            'Could not update payment record:',
-            saveError.message
-          );
-        });
-      }
-
-      return res.status(error.response?.status || 500).json({
-        success: false,
-        error: error.response?.data || error.message,
-        paymentId: payment?._id || null
-      });
     }
-  }
-);
 
+    payment.merchantRequestId = data.MerchantRequestID;
+    payment.checkoutRequestId = data.CheckoutRequestID;
+    payment.status = 'pending';
+    await payment.save();
+
+    return res.json({
+      success: true,
+      message: 'STK push sent. Ask the customer to check their phone.',
+      checkoutRequestId: data.CheckoutRequestID,
+      merchantRequestId: data.MerchantRequestID,
+      paymentId: payment._id
+    });
+  } catch (error) {
+    console.error(
+      'STK push error:',
+      error.response?.data || error.message
+    );
+
+    if (payment) {
+      payment.status = 'failed';
+      payment.resultDescription = error.message;
+      await payment.save().catch(() => {});
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || 'Unable to initiate M-Pesa payment.'
+    });
+  }
+});
 // ==================================================
 // 12. M-PESA CALLBACK
 // ==================================================
@@ -620,14 +859,12 @@ app.post('/api/mpesa/callback', async (req, res) => {
     }
 
     const resultCode = Number(callback.ResultCode);
-
     const items = callback.CallbackMetadata?.Item || [];
 
-    const getValue = name =>
-      items.find(item => item.Name === name)?.Value;
+    const getValue = (name) =>
+      items.find((item) => item.Name === name)?.Value;
 
     const receipt = getValue('MpesaReceiptNumber');
-
     const transactionDate = getValue('TransactionDate');
 
     const update = {
@@ -658,12 +895,8 @@ app.post('/api/mpesa/callback', async (req, res) => {
         checkoutRequestId: callback.CheckoutRequestID,
         status: { $ne: 'success' }
       },
-      {
-        $set: update
-      },
-      {
-        new: true
-      }
+      { $set: update },
+      { new: true }
     );
 
     if (!payment) {
@@ -714,32 +947,28 @@ app.post('/api/mpesa/callback', async (req, res) => {
 // 13. ADMIN PAYMENT HISTORY
 // ==================================================
 
-app.get(
-  '/api/admin/payments',
-  verifyAdminToken,
-  async (req, res) => {
-    try {
-      const payments = await Payment.find()
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
+app.get('/api/admin/payments', verifyAdminToken, async (req, res) => {
+  try {
+    const payments = await Payment.find()
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
 
-      return res.json({
-        success: true,
-        count: payments.length,
-        payments
-      });
+    return res.json({
+      success: true,
+      count: payments.length,
+      payments
+    });
 
-    } catch (error) {
-      console.error('Payment history error:', error.message);
+  } catch (error) {
+    console.error('Payment history error:', error.message);
 
-      return res.status(500).json({
-        success: false,
-        error: 'Unable to retrieve payment history.'
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to retrieve payment history.'
+    });
   }
-);
+});
 
 // ==================================================
 // 14. ERROR HANDLING
@@ -779,12 +1008,29 @@ async function startServer() {
 
     await connectDatabase();
 
+    // Create starter terminals only if the collection is empty.
+    if (await Terminal.countDocuments() === 0) {
+      const starterTerminals = Array.from(
+        { length: 8 },
+        (_, index) => ({
+          terminalId: `PC-${String(index + 1).padStart(2, '0')}`,
+          tier: index < 4 ? 'Standard' : 'Gaming',
+          status: 'Available',
+          currentUser: ''
+        })
+      );
+
+      await Terminal.insertMany(starterTerminals);
+
+      console.log('Starter terminal records created.');
+    }
+
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Badrat Cafee API running on port ${PORT}`);
       console.log(`M-Pesa environment: ${MPESA_ENV}`);
       console.log(
         `Allowed frontend origins: ${
-          allowedOrigins.join(', ') || 'all origins'
+          allowedOrigins.join(', ') || 'all origins (no origins configured)'
         }`
       );
     });
