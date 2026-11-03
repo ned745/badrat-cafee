@@ -97,59 +97,6 @@
             </form>
           </div>
 
-          <!-- M-Pesa Payment Section -->
-<div class="payment-container">
-  <h3>Pay via M-Pesa STK Push</h3>
-  <input type="text" id="phoneInput" placeholder="Phone (e.g., 0712345678)" required />
-  <input type="number" id="amountInput" placeholder="Amount (KES)" required />
-  <button onclick="triggerMpesaPayment()">Trigger STK Push</button>
-</div>
-
-<script>
-  const API_BASE_URL = 'https://badrat-cafee-api.onrender.com';
-
-  async function triggerMpesaPayment() {
-    try {
-      const phoneInput = document.getElementById('phoneInput').value.trim();
-      const amountInput = document.getElementById('amountInput').value.trim();
-      const adminToken = localStorage.getItem('adminToken');
-
-      if (!adminToken) {
-        alert('Please log in as Admin first to authorize this payment.');
-        return;
-      }
-
-      if (!phoneInput || !amountInput) {
-        alert('Please enter both phone number and amount.');
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/mpesa/stkpush`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({ 
-          phone: phoneInput, 
-          amount: Number(amountInput) 
-        })
-      });
-
-      const data = await response.json();
-      console.log('STK Response:', data);
-
-      if (data.success) {
-        alert('STK Push sent successfully! Check your phone.');
-      } else {
-        alert('Payment failed: ' + (typeof data.error === 'object' ? JSON.stringify(data.error) : data.error));
-      }
-    } catch (err) {
-      console.error('Payment Error:', err);
-      alert('Network error connecting to payment server.');
-    }
-  }
-</script>
           <!-- M-Pesa Checkout Card (Admin Protected) -->
           <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur">
             <h3 class="text-md font-bold text-emerald-400 mb-2 flex items-center gap-2">
@@ -454,22 +401,6 @@
         alert('Failed to submit order');
       }
     });
-    <!-- Admin Login Section -->
-<div class="admin-login-container" style="max-width: 400px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
-  <h3>Admin Portal Login</h3>
-  <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
-    <div style="margin-bottom: 10px;">
-      <label>Username:</label><br>
-      <input type="text" id="usernameInput" placeholder="Enter username" required style="width: 100%; padding: 8px;" />
-    </div>
-    <div style="margin-bottom: 10px;">
-      <label>Password:</label><br>
-      <input type="password" id="passwordInput" placeholder="Enter password" required style="width: 100%; padding: 8px;" />
-    </div>
-    <button type="submit" style="width: 100%; padding: 10px; background-color: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Login as Admin</button>
-  </form>
-  <button onclick="handleAdminLogout()" style="width: 100%; margin-top: 10px; padding: 8px; background-color: #ff4d4d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
-</div>
 
     // Load Admin Data & Items
     async function loadAdminData() {
@@ -642,31 +573,3 @@ async function triggerMpesaPayment() {
     alert('Network error triggering M-Pesa push.');
   }
 }
-<!-- Admin Login Section -->
-<div class="admin-login-container">
-  <h3>Admin Portal Login</h3>
-  <form id="adminLoginForm">
-    <div>
-      <label>Username:</label>
-      <input type="text" id="usernameInput" placeholder="Enter username" required />
-    </div>
-    <div>
-      <label>Password:</label>
-      <input type="password" id="passwordInput" placeholder="Enter password" required />
-    </div>
-    <button type="submit">Login as Admin</button>
-  </form>
-  
-  <!-- Logout Button -->
-  <button id="logoutBtn" style="margin-top: 10px;">Logout</button>
-</div>
-
-<!-- M-Pesa Payment Section -->
-<div class="payment-container" style="margin-top: 20px;">
-  <h3>Pay via M-Pesa STK Push</h3>
-  <input type="text" id="phoneInput" placeholder="Phone (e.g., 0712345678)" required />
-  <input type="number" id="amountInput" placeholder="Amount (KES)" required />
-  
-  <!-- M-Pesa Payment Button -->
-  <button id="mpesaPayBtn">Trigger STK Push</button>
-</div>
