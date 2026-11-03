@@ -31,12 +31,9 @@ cloudinary.config({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 3. Database Connection ---
+// --- 3. Database Connection (Fixed for Node 24) ---
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://your_atlas_connection_string';
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(MONGODB_URI)
 .then(() => console.log('✅ MongoDB Atlas Connected Successfully'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
