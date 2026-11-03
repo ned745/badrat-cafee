@@ -325,4 +325,38 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
       data: stkRes.data
     });
 
-  } catch (
+  } catch (err) {
+    console.error('❌ M-Pesa STK Detailed Error:', err.response?.data || err.message);
+    res.status(500).json({ 
+      success: false, 
+      error: err.response?.data || err.message 
+    });
+  }
+});
+
+// --- M-Pesa Callback Endpoint ---
+app.post('/api/mpesa/callback', async (req, res) => {
+  try {
+    const callbackData = req.body.Body.stkCallback;
+    console.log('M-Pesa Callback Received:', JSON.stringify(callbackData, null, 2));
+    
+    if (callbackData.ResultCode === 0) {
+      const metadata = callbackData.CallbackMetadata.Item;
+      const receipt = metadata.find(item => item.Name === 'MpesaReceiptNumber')?.Value;
+      console.log(`Payment confirmed! Receipt: ${receipt}`);
+    } else {
+      console.log(`Payment failed or cancelled: ${callbackData.ResultDesc}`);
+    }
+
+    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+  } catch (err) {
+    console.error('Callback error:', err.message);
+    res.status(500).json({ ResultCode: 1, ResultDesc: 'Rejected' });
+  }
+});
+
+// --- 7. Server Listener ---
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Badrat Cafee Backend running on port ${PORT}`);
+});
