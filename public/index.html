@@ -546,3 +546,30 @@ const response = await fetch('https://badrat-cafee.onrender.com/api/mpesa/stkpus
 });
 const data = await response.json();
 console.log(data);
+async function triggerMpesaPayment() {
+  try {
+    const phoneInput = document.getElementById('phoneInput').value; // e.g., '0712345678'
+    const amountInput = document.getElementById('amountInput').value; // e.g., '10'
+
+    const response = await fetch('https://badrat-cafee.onrender.com/api/mpesa/stkpush', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+      },
+      body: JSON.stringify({ phone: phoneInput, amount: Number(amountInput) })
+    });
+
+    const data = await response.json();
+    console.log('STK Response:', data);
+
+    if (data.success) {
+      alert('STK Push sent successfully! Check your phone.');
+    } else {
+      alert('Payment failed: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Payment Error:', err);
+    alert('Network error triggering M-Pesa push.');
+  }
+}
