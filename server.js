@@ -39,7 +39,6 @@ mongoose.connect(MONGODB_URI)
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // --- 4. Mongoose Schemas & Models ---
-
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
@@ -99,12 +98,10 @@ const verifyAdmin = (req, res, next) => {
 
 // --- 6. API Routes ---
 
-// Root Health-Check Route
 app.get('/', (req, res) => {
   res.json({ success: true, message: 'Badrat Cafee API is live!' });
 });
 
-// Admin Login Route
 app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   const adminUser = process.env.ADMIN_USER || 'BADRAT';
@@ -121,7 +118,6 @@ app.post('/api/admin/login', async (req, res) => {
   res.status(401).json({ success: false, error: 'Invalid admin credentials' });
 });
 
-// Get Terminals (Public)
 app.get('/api/terminals', async (req, res) => {
   try {
     let terminals = await Terminal.find();
@@ -140,7 +136,6 @@ app.get('/api/terminals', async (req, res) => {
   }
 });
 
-// Update Terminal Booking/Status
 app.post('/api/terminals/book', async (req, res) => {
   try {
     const { terminalId, currentUser, status } = req.body;
@@ -155,7 +150,6 @@ app.post('/api/terminals/book', async (req, res) => {
   }
 });
 
-// Get Items (Public)
 app.get('/api/items', async (req, res) => {
   try {
     const items = await Item.find().sort({ createdAt: -1 });
@@ -165,11 +159,9 @@ app.get('/api/items', async (req, res) => {
   }
 });
 
-// Post Item (Admin Only with Image Upload Support)
 app.post('/api/items', verifyAdmin, upload.single('image'), async (req, res) => {
   try {
     let imageUrl = req.body.imageUrl || '';
-
     if (req.file) {
       const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -193,13 +185,12 @@ app.post('/api/items', verifyAdmin, upload.single('image'), async (req, res) => 
     });
 
     await newItem.save();
-    res.json({ success: true, item: newItem, message: 'Item created successfully with picture!' });
+    res.json({ success: true, item: newItem, message: 'Item created successfully!' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }
 });
 
-// Delete Item (Admin Only)
 app.delete('/api/items/:id', verifyAdmin, async (req, res) => {
   try {
     const deleted = await Item.findByIdAndDelete(req.params.id);
@@ -210,7 +201,6 @@ app.delete('/api/items/:id', verifyAdmin, async (req, res) => {
   }
 });
 
-// Get Customer Orders
 app.get('/api/orders', async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
@@ -220,7 +210,6 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// Submit Customer Order
 app.post('/api/orders', async (req, res) => {
   try {
     const newOrder = new Order(req.body);
@@ -231,7 +220,6 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// Update Order Reply / Status
 app.put('/api/orders/:id/reply', async (req, res) => {
   try {
     const { status, adminReply } = req.body;
@@ -246,7 +234,6 @@ app.put('/api/orders/:id/reply', async (req, res) => {
   }
 });
 
-// Get Gallery Items
 app.get('/api/gallery', async (req, res) => {
   try {
     const items = await GalleryItem.find().sort({ createdAt: -1 });
@@ -256,12 +243,10 @@ app.get('/api/gallery', async (req, res) => {
   }
 });
 
-// --- M-Pesa STK Push Route (Admin Protected & Functional) ---
+// --- M-Pesa STK Push Route ---
 app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
   try {
     let { phone, amount } = req.body;
-    
-    // Format phone number to 2547XXXXXXXX
     phone = phone.replace(/^0/, '254').replace(/^\+/, '');
     
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
@@ -282,14 +267,12 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
       ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
       : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
-    // 1. Generate OAuth Access Token
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
     const tokenRes = await axios.get(authUrl, {
       headers: { Authorization: `Basic ${auth}` }
     });
     const accessToken = tokenRes.data.access_token;
 
-    // 2. Generate Timestamp & Password
     const date = new Date();
     const timestamp = date.getFullYear() +
       String(date.getMonth() + 1).padStart(2, '0') +
@@ -300,7 +283,6 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
 
     const password = Buffer.from(`${shortCode}${passKey}${timestamp}`).toString('base64');
 
-    // 3. Send STK Push Request
     const stkPayload = {
       BusinessShortCode: shortCode,
       Password: password,
@@ -319,18 +301,10 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
 
-    res.json({
-      success: true,
-      message: 'STK push triggered successfully',
-      data: stkRes.data
-    });
-
+    res.json({ success: true, message: 'STK push triggered successfully', data: stkRes.data });
   } catch (err) {
     console.error('❌ M-Pesa STK Detailed Error:', err.response?.data || err.message);
-    res.status(500).json({ 
-      success: false, 
-      error: err.response?.data || err.message 
-    });
+    res.status(500).json({ success: false, error: err.response?.data || err.message });
   }
 });
 
@@ -339,15 +313,6 @@ app.post('/api/mpesa/callback', async (req, res) => {
   try {
     const callbackData = req.body.Body.stkCallback;
     console.log('M-Pesa Callback Received:', JSON.stringify(callbackData, null, 2));
-    
-    if (callbackData.ResultCode === 0) {
-      const metadata = callbackData.CallbackMetadata.Item;
-      const receipt = metadata.find(item => item.Name === 'MpesaReceiptNumber')?.Value;
-      console.log(`Payment confirmed! Receipt: ${receipt}`);
-    } else {
-      console.log(`Payment failed or cancelled: ${callbackData.ResultDesc}`);
-    }
-
     res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
   } catch (err) {
     console.error('Callback error:', err.message);
