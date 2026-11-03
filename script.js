@@ -8,7 +8,7 @@ async function handleAdminLogin(event) {
   const passwordInput = document.getElementById('passwordInput').value.trim();
 
   try {
-    const response = await fetch(${API_BASE_URL}/api/admin/login, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: usernameInput, password: passwordInput })
@@ -45,11 +45,11 @@ async function triggerMpesaPayment() {
       return;
     }
 
-    const response = await fetch(${API_BASE_URL}/api/mpesa/stkpush, {
+    const response = await fetch(`${API_BASE_URL}/api/mpesa/stkpush`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': Bearer 
+        'Authorization': `Bearer ${adminToken}`
       },
       body: JSON.stringify({ 
         phone: phoneInput, 
@@ -63,7 +63,11 @@ async function triggerMpesaPayment() {
     if (data.success) {
       alert('STK Push sent successfully! Check your phone.');
     } else {
-      alert('Payment failed: ' + (typeof data.error === 'object' ? JSON.stringify(data.error) : data.error));
+      let errorMsg = data.error;
+      if (typeof errorMsg === 'object') {
+        errorMsg = errorMsg.errorMessage || errorMsg.ResponseDescription || JSON.stringify(errorMsg, null, 2);
+      }
+      alert('Payment failed: ' + errorMsg);
     }
   } catch (err) {
     console.error('Payment Error:', err);
