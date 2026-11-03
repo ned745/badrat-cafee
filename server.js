@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
+const axios = require('axios');
 
 const app = express();
 
@@ -31,13 +32,14 @@ cloudinary.config({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// --- 3. Database Connection ---
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://nedaol753_db_user:Benjaminned1@cluster0.2v3gnou.mongodb.net/?retryWrites=true&w=majority';
 mongoose.connect(MONGODB_URI)
 .then(() => console.log('✅ MongoDB Atlas Connected Successfully'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
+
 // --- 4. Mongoose Schemas & Models ---
 
-// Item Schema with Image Support
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
@@ -48,7 +50,6 @@ const itemSchema = new mongoose.Schema({
 });
 const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
 
-// Terminal Schema (PC Rigs & Stations)
 const terminalSchema = new mongoose.Schema({
   terminalId: { type: String, required: true, unique: true },
   tier: { type: String, required: true },
@@ -57,7 +58,6 @@ const terminalSchema = new mongoose.Schema({
 });
 const Terminal = mongoose.model('Terminal', terminalSchema);
 
-// Customer Order Schema
 const orderSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
   serviceType: { type: String, required: true },
@@ -68,7 +68,6 @@ const orderSchema = new mongoose.Schema({
 });
 const Order = mongoose.model('Order', orderSchema);
 
-// Gallery / Poster Schema
 const gallerySchema = new mongoose.Schema({
   title: { type: String, required: true },
   category: { type: String, required: true },
@@ -99,6 +98,11 @@ const verifyAdmin = (req, res, next) => {
 
 
 // --- 6. API Routes ---
+
+// Root Health-Check Route
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Badrat Cafee API is live!' });
+});
 
 // Admin Login Route
 app.post('/api/admin/login', async (req, res) => {
@@ -252,26 +256,105 @@ app.get('/api/gallery', async (req, res) => {
   }
 });
 
-// Protected M-Pesa STK Push Route (Admin Only)
+// --- M-Pesa STK Push Route (Admin Protected & Functional) ---
 app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
   try {
-    const { phone, amount } = req.body;
-    console.log(`Processing M-Pesa STK Push of KES ${amount} to ${phone}`);
-    res.json({ 
-      success: true, 
-      mpesaResponse: { ResponseCode: "0", ResultDesc: "Success. Request accepted for processing" } 
+    let { phone, amount } = req.body;
+    
+    // Format phone number to 2547XXXXXXXX
+    phone = phone.replace(/^0/, '254').replace(/^\+/, '');
+    
+    const consumerKey = process.env.MPESA_CONSUMER_KEY;
+    const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
+    const shortCode = process.env.MPESA_SHORTCODE || '174379';
+    const passKey = process.env.MPESA_PASSKEY;
+    const env = process.env.MPESA_ENV || 'sandbox';
+
+    if (!consumerKey || !consumerSecret || !passKey) {
+      return res.status(400).json({ success: false, error: 'M-Pesa credentials not configured on server.' });
+    }
+
+    const authUrl = env === 'production' 
+      ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+      : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+
+    const stkUrl = env === 'production'
+      ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+      : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+
+    // 1. Generate OAuth Access Token
+    const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
+    const tokenRes = await axios.get(authUrl, {
+      headers: { Authorization: `Basic ${auth}` }
     });
+    const accessToken = tokenRes.data.access_token;
+
+    // 2. Generate Timestamp & Password
+    const date = new Date();
+    const timestamp = date.getFullYear() +
+      String(date.getMonth() + 1).padStart(2, '0') +
+      String(date.getDate()).padStart(2, '0') +
+      String(date.getHours()).padStart(2, '0') +
+      String(date.getMinutes()).padStart(2, '0') +
+      String(date.getSeconds()).padStart(2, '0');
+
+    const password = Buffer.from(`${shortCode}${passKey}${timestamp}`).toString('base64');
+
+    // 3. Send STK Push Request
+    const stkPayload = {
+      BusinessShortCode: shortCode,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: 'CustomerPayBillOnline',
+      Amount: Number(amount),
+      PartyA: phone,
+      PartyB: shortCode,
+      PhoneNumber: phone,
+      CallBackURL: `${process.env.BACKEND_URL || 'https://badrat-cafee.onrender.com'}/api/mpesa/callback`,
+      AccountReference: 'BadratCafee',
+      TransactionDesc: 'Terminal & Cafe Payment'
+    };
+
+    const stkRes = await axios.post(stkUrl, stkPayload, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    res.json({
+      success: true,
+      message: 'STK push triggered successfully',
+      data: stkRes.data
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('M-Pesa STK Error:', err.response?.data || err.message);
+    res.status(500).json({ 
+      success: false, 
+      error: err.response?.data?.errorMessage || err.message 
+    });
   }
 });
 
-app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Badrat Cafee API is live!' });
+// --- M-Pesa Callback Endpoint ---
+app.post('/api/mpesa/callback', async (req, res) => {
+  try {
+    const callbackData = req.body.Body.stkCallback;
+    console.log('M-Pesa Callback Received:', JSON.stringify(callbackData, null, 2));
+    
+    if (callbackData.ResultCode === 0) {
+      const metadata = callbackData.CallbackMetadata.Item;
+      const receipt = metadata.find(item => item.Name === 'MpesaReceiptNumber')?.Value;
+      console.log(`Payment confirmed! Receipt: ${receipt}`);
+    } else {
+      console.log(`Payment failed or cancelled: ${callbackData.ResultDesc}`);
+    }
+
+    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+  } catch (err) {
+    console.error('Callback error:', err.message);
+    res.status(500).json({ ResultCode: 1, ResultDesc: 'Rejected' });
+  }
 });
-app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Badrat Cafee Backend is live and operational!' });
-});
+
 // --- 7. Server Listener ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
