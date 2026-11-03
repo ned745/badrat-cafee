@@ -310,7 +310,7 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
       PartyA: phone,
       PartyB: shortCode,
       PhoneNumber: phone,
-      CallBackURL: `${process.env.BACKEND_URL || 'https://badrat-cafee.onrender.com'}/api/mpesa/callback`,
+      CallBackURL: `${process.env.BACKEND_URL || 'https://badrat-cafee-api.onrender.com'}/api/mpesa/callback`,
       AccountReference: 'BadratCafee',
       TransactionDesc: 'Terminal & Cafe Payment'
     };
