@@ -16,7 +16,7 @@
 <body class="text-slate-200 min-h-screen flex flex-col justify-between">
 
   <!-- Header -->
-  <header class="border-b border-cyan-900/50 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+  <header class="border-b border-cyan-900/50 bg-slate-900/85 backdrop-blur sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-bold text-cyan-400 text-xl shadow-[0_0_10px_rgba(34,211,238,0.5)]">
@@ -26,7 +26,7 @@
           <h1 class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 bg-clip-text text-transparent uppercase">
             Badrat Cafee
           </h1>
-          <p class="text-xs text-slate-400 tracking-widest uppercase">Cloud Managed Infrastructure</p>
+          <p class="text-xs text-slate-400 tracking-widest uppercase">Sauti ya ground</p>
         </div>
       </div>
 
@@ -130,19 +130,38 @@
     <div id="view-admin" class="hidden space-y-8">
       <div class="bg-slate-900/80 border border-cyan-900/50 p-6 rounded-2xl backdrop-blur shadow-xl">
         <h2 class="text-xl font-bold text-cyan-400 mb-1">🔐 Admin Control Center</h2>
-        <p class="text-xs text-slate-400 mb-6">Manage terminal bookings, publish items, and manage inventory.</p>
+        <p class="text-xs text-slate-400 mb-6">Manage terminal bookings, publish items with pictures, and manage inventory.</p>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          <!-- Post New Item Form -->
+          <!-- Post New Item Form with Picture Upload -->
           <div class="bg-slate-950/70 border border-slate-800 p-5 rounded-xl space-y-4">
-            <h3 class="text-md font-bold text-indigo-400">📦 Post New Item / Service</h3>
+            <h3 class="text-md font-bold text-indigo-400">📦 Post New Item with Picture</h3>
             <form id="addItemForm" onsubmit="handleAddItem(event)" class="space-y-3">
-              <input type="text" id="itemName" placeholder="Item Name (e.g. Red Bull)" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
-              <input type="text" id="itemCategory" placeholder="Category (e.g. Drinks)" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
-              <input type="number" id="itemPrice" placeholder="Price (KES)" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
-              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded text-xs tracking-wider transition uppercase">
-                Post Item to Store
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Item Name</label>
+                <input type="text" id="itemName" placeholder="e.g. Red Bull or Custom Hoodie" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Category</label>
+                  <input type="text" id="itemCategory" placeholder="e.g. Drinks, Merch" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Price (KES)</label>
+                  <input type="number" id="itemPrice" placeholder="250" required class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Description</label>
+                <textarea id="itemDesc" rows="2" placeholder="Item description..." class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Upload Picture (Cloudinary)</label>
+                <input type="file" id="itemImage" accept="image/*" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-400">
+              </div>
+              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded text-xs tracking-wider transition uppercase shadow-lg">
+                Post Item with Picture
               </button>
             </form>
           </div>
@@ -151,13 +170,22 @@
           <div class="bg-slate-950/70 border border-slate-800 p-5 rounded-xl space-y-4">
             <h3 class="text-md font-bold text-cyan-400">💻 Quick Terminal Status Override</h3>
             <form id="admin-booking-form" class="space-y-3">
-              <select id="admin-terminal-select" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200"></select>
-              <input type="text" id="admin-user-name" placeholder="Customer Name" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
-              <select id="admin-status-select" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
-                <option value="Occupied">Occupied</option>
-                <option value="Available">Available</option>
-                <option value="Maintenance">Maintenance</option>
-              </select>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Select Terminal</label>
+                <select id="admin-terminal-select" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Customer Name</label>
+                <input type="text" id="admin-user-name" placeholder="Customer Name" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Status</label>
+                <select id="admin-status-select" class="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200">
+                  <option value="Occupied">Occupied</option>
+                  <option value="Available">Available</option>
+                  <option value="Maintenance">Maintenance</option>
+                </select>
+              </div>
               <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded text-xs tracking-wider transition uppercase">
                 Update Terminal Record
               </button>
@@ -205,7 +233,6 @@
         btnAdmin.className = 'px-4 py-1.5 rounded text-xs font-bold text-slate-400 hover:text-white transition';
         loadData();
       } else {
-        // Verify admin access before switching to admin tab
         const token = localStorage.getItem(ADMIN_TOKEN_KEY);
         if (!token) {
           alert('⛔ Access Denied: Administrator authentication required to view Admin Portal.');
@@ -250,6 +277,7 @@
           localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
           alert('✅ Admin login successful!');
           updateAdminUI();
+          switchTab('admin');
         } else {
           alert('❌ Login failed: ' + (data.error || 'Invalid credentials'));
         }
@@ -278,7 +306,7 @@
       }
     }
 
-    // Load Data
+    // Load Terminals & Public Data
     async function loadData() {
       try {
         const res = await fetch(`${API_BASE_URL}/terminals`);
@@ -396,7 +424,7 @@
       }
     }
 
-    // Post Item Handler
+    // Post Item Handler with Multipart FormData (Picture Support)
     async function handleAddItem(e) {
       e.preventDefault();
       const token = localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -406,25 +434,29 @@
         return;
       }
 
-      const newItem = {
-        name: document.getElementById('itemName').value,
-        category: document.getElementById('itemCategory').value,
-        price: Number(document.getElementById('itemPrice').value)
-      };
+      const formData = new FormData();
+      formData.append('name', document.getElementById('itemName').value);
+      formData.append('category', document.getElementById('itemCategory').value);
+      formData.append('price', document.getElementById('itemPrice').value);
+      formData.append('description', document.getElementById('itemDesc').value);
+
+      const imageFile = document.getElementById('itemImage').files[0];
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
 
       try {
         const res = await fetch(`${API_BASE_URL}/items`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify(newItem)
+          body: formData
         });
         const data = await res.json();
         if (data.success) {
           document.getElementById('addItemForm').reset();
-          alert('✅ Item posted successfully!');
+          alert('✅ Item posted successfully with picture!');
           loadAdminData();
         } else {
           alert('Failed to post item: ' + data.error);
@@ -442,9 +474,12 @@
       }
       container.innerHTML = items.map(item => `
         <div class="bg-slate-900 p-3 rounded-lg flex justify-between items-center border border-slate-800">
-          <div>
-            <p class="font-semibold text-xs text-slate-200">${item.name}</p>
-            <p class="text-[10px] text-slate-400">${item.category} • KES ${item.price}</p>
+          <div class="flex items-center gap-3">
+            ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-10 h-10 object-cover rounded">` : '<div class="w-10 h-10 bg-slate-950 rounded flex items-center justify-center text-[10px] text-slate-600">No Img</div>'}
+            <div>
+              <p class="font-semibold text-xs text-slate-200">${item.name}</p>
+              <p class="text-[10px] text-slate-400">${item.category} • KES ${item.price}</p>
+            </div>
           </div>
           <button onclick="deleteItem('${item._id}')" class="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-2.5 py-1 rounded text-xs transition">Delete</button>
         </div>

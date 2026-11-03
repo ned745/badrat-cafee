@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 
 const app = express();
 
@@ -20,7 +22,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// --- 2. Database Connection ---
+// --- 2. Cloudinary & Multer Setup ---
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// --- 3. Database Connection ---
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://your_atlas_connection_string';
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -29,23 +40,24 @@ mongoose.connect(MONGODB_URI, {
 .then(() => console.log('✅ MongoDB Atlas Connected Successfully'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// --- 3. Mongoose Schemas & Models ---
+// --- 4. Mongoose Schemas & Models ---
 
-// Item Schema (Menu / Services / Merchandise)
+// Item Schema with Image Support
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
   price: { type: Number, required: true },
-  description: String,
+  description: { type: String, default: '' },
+  imageUrl: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
-const Item = mongoose.model('Item', itemSchema);
+const Item = mongoose.models.Item || mongoose.model('Item', itemSchema);
 
 // Terminal Schema (PC Rigs & Stations)
 const terminalSchema = new mongoose.Schema({
   terminalId: { type: String, required: true, unique: true },
   tier: { type: String, required: true },
-  status: { type: String, default: 'Available' }, // Available, Occupied, Maintenance
+  status: { type: String, default: 'Available' },
   currentUser: { type: String, default: '' }
 });
 const Terminal = mongoose.model('Terminal', terminalSchema);
@@ -55,7 +67,7 @@ const orderSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
   serviceType: { type: String, required: true },
   details: { type: String, required: true },
-  status: { type: String, default: 'Pending' }, // Pending, In Progress, Completed
+  status: { type: String, default: 'Pending' },
   adminReply: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
@@ -71,7 +83,7 @@ const gallerySchema = new mongoose.Schema({
 const GalleryItem = mongoose.model('GalleryItem', gallerySchema);
 
 
-// --- 4. Admin Authentication Middleware ---
+// --- 5. Admin Authentication Middleware ---
 const verifyAdmin = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -91,7 +103,7 @@ const verifyAdmin = (req, res, next) => {
 };
 
 
-// --- 5. API Routes ---
+// --- 6. API Routes ---
 
 // Admin Login Route
 app.post('/api/admin/login', async (req, res) => {
@@ -114,7 +126,6 @@ app.post('/api/admin/login', async (req, res) => {
 app.get('/api/terminals', async (req, res) => {
   try {
     let terminals = await Terminal.find();
-    // Initialize default terminals if none exist
     if (terminals.length === 0) {
       const defaults = [
         { terminalId: 'PC-01', tier: 'Pro Gaming', status: 'Available' },
@@ -130,7 +141,7 @@ app.get('/api/terminals', async (req, res) => {
   }
 });
 
-// Update Terminal Booking/Status (Admin or System)
+// Update Terminal Booking/Status
 app.post('/api/terminals/book', async (req, res) => {
   try {
     const { terminalId, currentUser, status } = req.body;
@@ -155,12 +166,35 @@ app.get('/api/items', async (req, res) => {
   }
 });
 
-// Post Item (Admin Only)
-app.post('/api/items', verifyAdmin, async (req, res) => {
+// Post Item (Admin Only with Image Upload Support)
+app.post('/api/items', verifyAdmin, upload.single('image'), async (req, res) => {
   try {
-    const newItem = new Item(req.body);
+    let imageUrl = req.body.imageUrl || '';
+
+    if (req.file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'badrat-cafee' },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+      imageUrl = uploadResult.secure_url;
+    }
+
+    const newItem = new Item({
+      name: req.body.name,
+      category: req.body.category,
+      price: req.body.price,
+      description: req.body.description || '',
+      imageUrl: imageUrl
+    });
+
     await newItem.save();
-    res.json({ success: true, item: newItem, message: 'Item created successfully' });
+    res.json({ success: true, item: newItem, message: 'Item created successfully with picture!' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }
@@ -227,8 +261,6 @@ app.get('/api/gallery', async (req, res) => {
 app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
   try {
     const { phone, amount } = req.body;
-    // Insert your Daraja API STK Push integration logic here
-    // For demonstration, simulating successful response:
     console.log(`Processing M-Pesa STK Push of KES ${amount} to ${phone}`);
     res.json({ 
       success: true, 
@@ -239,7 +271,7 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
   }
 });
 
-// --- 6. Server Listener ---
+// --- 7. Server Listener ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Badrat Cafee Backend running on port ${PORT}`);
