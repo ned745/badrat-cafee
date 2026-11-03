@@ -642,3 +642,31 @@ async function triggerMpesaPayment() {
     alert('Network error triggering M-Pesa push.');
   }
 }
+<!-- Admin Login Section -->
+<div class="admin-login-container">
+  <h3>Admin Portal Login</h3>
+  <form id="adminLoginForm">
+    <div>
+      <label>Username:</label>
+      <input type="text" id="usernameInput" placeholder="Enter username" required />
+    </div>
+    <div>
+      <label>Password:</label>
+      <input type="password" id="passwordInput" placeholder="Enter password" required />
+    </div>
+    <button type="submit">Login as Admin</button>
+  </form>
+  
+  <!-- Logout Button -->
+  <button id="logoutBtn" style="margin-top: 10px;">Logout</button>
+</div>
+
+<!-- M-Pesa Payment Section -->
+<div class="payment-container" style="margin-top: 20px;">
+  <h3>Pay via M-Pesa STK Push</h3>
+  <input type="text" id="phoneInput" placeholder="Phone (e.g., 0712345678)" required />
+  <input type="number" id="amountInput" placeholder="Amount (KES)" required />
+  
+  <!-- M-Pesa Payment Button -->
+  <button id="mpesaPayBtn">Trigger STK Push</button>
+</div>

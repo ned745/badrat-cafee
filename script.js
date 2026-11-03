@@ -76,3 +76,21 @@ function handleAdminLogout() {
   localStorage.removeItem('adminToken');
   alert('Logged out successfully. Admin token cleared.');
 }
+
+// 4. Auto-attach event listeners on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+  const adminLoginForm = document.getElementById('adminLoginForm');
+  if (adminLoginForm) {
+    adminLoginForm.addEventListener('submit', handleAdminLogin);
+  }
+
+  const mpesaButton = document.getElementById('mpesaPayBtn');
+  if (mpesaButton) {
+    mpesaButton.addEventListener('click', triggerMpesaPayment);
+  }
+
+  const logoutButton = document.getElementById('logoutBtn');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', handleAdminLogout);
+  }
+});
