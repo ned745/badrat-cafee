@@ -266,6 +266,12 @@ app.post('/api/mpesa/stkpush', verifyAdmin, async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Badrat Cafee API is live!' });
+});
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Badrat Cafee Backend is live and operational!' });
+});
 // --- 7. Server Listener ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
