@@ -31,12 +31,10 @@ cloudinary.config({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- 3. Database Connection (Fixed for Node 24) ---
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://your_atlas_connection_string';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://nedaol753_db_user:Benjaminned1@cluster0.2v3gnou.mongodb.net/?retryWrites=true&w=majority';
 mongoose.connect(MONGODB_URI)
 .then(() => console.log('✅ MongoDB Atlas Connected Successfully'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
-
 // --- 4. Mongoose Schemas & Models ---
 
 // Item Schema with Image Support
