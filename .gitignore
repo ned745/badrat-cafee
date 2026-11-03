@@ -9,3 +9,7 @@ npm-debug.log*
 # System Files
 .DS_Store
 Thumbs.db
+node_modules/
+.env
+.env.*
+!.env.example
